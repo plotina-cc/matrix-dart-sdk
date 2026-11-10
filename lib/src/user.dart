@@ -55,12 +55,27 @@ class User extends StrippedStateEvent {
   String get id => stateKey ?? '@unknown:unknown';
 
   /// The displayname of the user if the user has set one.
-  String? get displayName =>
+  ///
+  /// This is the name as it is stored in the room member state, or the
+  /// previous content of it. It is what the room — and therefore everyone
+  /// else — sees.
+  String? get rawDisplayName =>
       content.tryGet<String>('displayname') ??
       (membership == Membership.join ||
               !room.client.getDisplayNameAndAvatarFromPrevContent
           ? null
           : prevContent?.tryGet<String>('displayname'));
+
+  /// The name this user is shown under in the app.
+  ///
+  /// Plotina: the app may keep its own, device-local names for contacts (see
+  /// [Client.localNameResolver]). Such a name wins here, so that a single
+  /// override covers everything derived from it — [calcDisplayname],
+  /// [mention], [mentionFragments] and room titles computed from heroes via
+  /// `Room.getLocalizedDisplayname`. Without a resolver, or when it has
+  /// nothing for this user, this is exactly [rawDisplayName].
+  String? get displayName =>
+      room.client.resolveLocalName(id) ?? rawDisplayName;
 
   /// Returns the power level of this user.
   PowerLevel get powerLevel => room.getPowerLevelByUserId(id);

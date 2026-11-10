@@ -443,6 +443,34 @@ class Client extends MatrixApi {
 
   Map<String, BasicEvent> get accountData => _accountData;
 
+  /// Plotina: an optional source of application-local contact names.
+  ///
+  /// The app may keep its own names for contacts (in its own account data,
+  /// which this SDK knows nothing about) and install a resolver here once per
+  /// client. Whatever it returns for a user id becomes that user's name
+  /// everywhere — [User.displayName], [User.calcDisplayname], [User.mention],
+  /// room titles computed from heroes, participant lists — so the override
+  /// lives in exactly one place instead of every call site.
+  ///
+  /// Returning `null`, an empty or a blank string, throwing, or not setting
+  /// the resolver at all leaves the SDK behaviour byte for byte as before.
+  String? Function(String userId)? localNameResolver;
+
+  /// The application-local name of [userId], or `null` if there is none.
+  ///
+  /// Never throws: a broken resolver must not break name rendering.
+  String? resolveLocalName(String userId) {
+    final resolver = localNameResolver;
+    if (resolver == null) return null;
+    try {
+      final name = resolver(userId)?.trim();
+      return (name == null || name.isEmpty) ? null : name;
+    } catch (e, s) {
+      Logs().w('The local name resolver failed for $userId', e, s);
+      return null;
+    }
+  }
+
   /// Evaluate if an event should notify quickly
   PushruleEvaluator get pushruleEvaluator =>
       _pushruleEvaluator ?? PushruleEvaluator.fromRuleset(PushRuleSet());
